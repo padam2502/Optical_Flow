@@ -1,5 +1,4 @@
-[![Generic badge](https://img.shields.io/badge/CV-Assignment:2-BLUE.svg)](https://shields.io/)
-[![Generic badge](https://img.shields.io/badge/DUE-23:00hrs,13/02/2023-RED.svg)](https://shields.io/)
+
 
 # Assignment-02
 
