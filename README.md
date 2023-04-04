@@ -4,8 +4,6 @@
 
 This project implements the Single-Scale Lucas-Kanade Optical Flow algorithm on a set of images from the Middlebury Optical Flow dataset. The implementation consists of two main parts:
 
-Keypoint Selection: Selecting Pixels to Track
-Forward-Additive Sparse Optical Flow
 
 
 ## 1: Keypoint Selection: Selecting Pixels to Track
