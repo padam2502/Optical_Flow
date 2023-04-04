@@ -1,208 +1,57 @@
 
 
-# Assignment-02
+# Optical_Flow
 
-The goal of the assignment is to familiarize you to optical flow which is the most general and challenging version
-of motion estimation. It involves computing an independent estimate of motion at each pixel.
+This project implements the Single-Scale Lucas-Kanade Optical Flow algorithm on a set of images from the Middlebury Optical Flow dataset. The implementation consists of two main parts:
 
-Please raise doubts on the appropriate assignment thread on Moodle.
-
-# Instructions
-
--   Follow the directory structure as shown below:
-    ```
-    ├── src
-          ├── Assignment02.ipynb
-    ├── results  //storing outputs
-    ├── docs
-          ├── report.pdf  // analysis of results
-          ├── solutions.pdf // typed / handwritten solutions
-    ├── data  //provided data
-    ├── Assign02.pdf
-    └── README.md
-    ```
--   `src` will contain the Jupyter notebook(s) used for the assignment.
--   `docs` will contain handwritten solutions and the assignment report.
--   `data` contains images provided to you already, for solving the questions.
--   Follow this directory structure for all following assignments in this course.
--   **Make sure you run your Jupyter notebook before committing, to save all outputs.**
-
-## Middlebery Optical Flow Dataset
-
--   `all-frames-colour` : All frames in colour
--   `ground-truth` : Groundtruth flow
--   `ground-truth-interp` : Groundtruth flow interpolation
--   `usseq.mat` : Ultrasound sequence
-
-## Helper Code
-
-```python
-# Source:https://github.com/sampepose/flownet2-tf/blob/master/src/flowlib.py
-import matplotlib.pyplot as plt
-import numpy as np
-
-UNKNOWN_FLOW_THRESH = 1e7
-def show_flow(filename):
-    """
-    visualize optical flow map using matplotlib
-    :param filename: optical flow file
-    :return: None
-    """
-    flow = read_flow(filename)
-    img = flow_to_image(flow)
-    plt.imshow(img)
-    plt.show()
-
-def read_flow(filename):
-    """
-    read optical flow from Middlebury .flo file
-    :param filename: name of the flow file
-    :return: optical flow data in matrix
-    """
-    f = open(filename, 'rb')
-    magic = np.fromfile(f, np.float32, count=1)
-    data2d = None
-
-    if 202021.25 != magic:
-        print ('Magic number incorrect. Invalid .flo file')
-    else:
-        w = int(np.fromfile(f, np.int32, count=1)[0])
-        h = int(np.fromfile(f, np.int32, count=1)[0])
-        #print("Reading %d x %d flo file" % (h, w))
-        data2d = np.fromfile(f, np.float32, count=2 * w * h)
-        # reshape data into 3D array (columns, rows, channels)
-        data2d = np.resize(data2d, (h, w, 2))
-    f.close()
-    return data2d
-
-def flow_to_image(flow):
-    """
-    Convert flow into middlebury color code image
-    :param flow: optical flow map
-    :return: optical flow image in middlebury color
-    """
-    u = flow[:, :, 0]
-    v = flow[:, :, 1]
-
-    maxu = -999.
-    maxv = -999.
-    minu = 999.
-    minv = 999.
-
-    idxUnknow = (abs(u) > UNKNOWN_FLOW_THRESH) | (abs(v) > UNKNOWN_FLOW_THRESH)
-    u[idxUnknow] = 0
-    v[idxUnknow] = 0
-
-    maxu = max(maxu, np.max(u))
-    minu = min(minu, np.min(u))
-
-    maxv = max(maxv, np.max(v))
-    minv = min(minv, np.min(v))
-
-    rad = np.sqrt(u ** 2 + v ** 2)
-    maxrad = max(-1, np.max(rad))
-
-    u = u/(maxrad + np.finfo(float).eps)
-    v = v/(maxrad + np.finfo(float).eps)
-
-    img = compute_color(u, v)
-
-    idx = np.repeat(idxUnknow[:, :, np.newaxis], 3, axis=2)
-    img[idx] = 0
-
-    return np.uint8(img)
+Keypoint Selection: Selecting Pixels to Track
+Forward-Additive Sparse Optical Flow
 
 
-def compute_color(u, v):
-    """
-    compute optical flow color map
-    :param u: optical flow horizontal map
-    :param v: optical flow vertical map
-    :return: optical flow in color code
-    """
-    [h, w] = u.shape
-    img = np.zeros([h, w, 3])
-    nanIdx = np.isnan(u) | np.isnan(v)
-    u[nanIdx] = 0
-    v[nanIdx] = 0
+## 1: Keypoint Selection: Selecting Pixels to Track
 
-    colorwheel = make_color_wheel()
-    ncols = np.size(colorwheel, 0)
+The first part of the implementation involves selecting feature points to track using OpenCV’s Harris Corner Detector implementation. The feature points obtained by the algorithm are visualized by superimposing them on the images. This part of the implementation is based on the 1988 work, "A Combined Corner and Edge Detector" by Chris Harris and Mike Stephens.
 
-    rad = np.sqrt(u**2+v**2)
+## 2: Forward-Additive Sparse Optical Flow
 
-    a = np.arctan2(-v, -u) / np.pi
+The second part of the implementation involves implementing the single-scale Lucas-Kanade (LK) algorithm based on the work described in the classic 1981 IJCAI paper "An iterative image registration technique with an application to stereo vision" by Bruce D. Lucas and Takeo Kanade. The algorithm computes the optical flow between two consecutive frames by finding the motion (u, v) that minimizes the sum-squared error of the brightness constancy equations for each pixel in a window.
 
-    fk = (a+1) / 2 * (ncols - 1) + 1
+The main task is broken down into the following sub-parts:
 
-    k0 = np.floor(fk).astype(int)
-
-    k1 = k0 + 1
-    k1[k1 == ncols+1] = 1
-    f = fk - k0
-
-    for i in range(0, np.size(colorwheel,1)):
-        tmp = colorwheel[:, i]
-        col0 = tmp[k0-1] / 255
-        col1 = tmp[k1-1] / 255
-        col = (1-f) * col0 + f * col1
-
-        idx = rad <= 1
-        col[idx] = 1-rad[idx]*(1-col[idx])
-        notidx = np.logical_not(idx)
-
-        col[notidx] *= 0.75
-        img[:, :, i] = np.uint8(np.floor(255 * col*(1-nanIdx)))
-
-    return img
+- Visualizing the dense optical flow of the .flo files given using the provided helper code.
+- Implementing the sparse LK Method.
+- Plotting and comparing the implementation and OpenCV implementation for all consecutive frames for the three sequences.  
+- Quiver plots are superimposed on the images. The OpenCV implementation uses multi-scale LK so it is alright if the results are not the same, but the general flow will still be the same.
+- Creating a video out of the images to show the optical flow (optional task).
+- Computing the Average End Point Error (EPE) between the ground truth optical flow in .flo files and the predicted optical flow for the feature points detected.
+- The project uses all the given image sequences from the Middlebury Optical Flow dataset throughout part two to test the algorithm.
 
 
-def make_color_wheel():
-    """
-    Generate color wheel according Middlebury color code
-    :return: Color wheel
-    """
-    RY = 15
-    YG = 6
-    GC = 4
-    CB = 11
-    BM = 13
-    MR = 6
+# 3: Multi-Scale Coarse-to-fine Optical Flow
 
-    ncols = RY + YG + GC + CB + BM + MR
+This project builds upon the implementation of the single-scale Lucas-Kanade algorithm in Part 2, by implementing the multi-scale coarse-to-fine optical flow estimation.
 
-    colorwheel = np.zeros([ncols, 3])
+## Overview
+The multi-scale coarse-to-fine optical flow estimation algorithm is a refinement of the single-scale algorithm. It works by first computing the optical flow at a coarse image resolution, which is then iteratively refined at successively higher resolutions, up to the resolution of the original input images. This approach effectively computes the optical flow using successively smaller apertures and works well on images with large displacements, something the single-scale algorithm is unable to handle.
 
-    col = 0
+## Implementation Details
+The implementation involves modifying the code from Part 2 to accept and refine parameters u0 and v0, which correspond to the initial estimates of the optical flow. The OpticalFlowRefine function refines the optical flow according to the formula u = u0 + ∆u and v = v0 + ∆v, where ∆u and ∆v represent the offset between the initial estimate and the refined estimate. To compute ∆u and ∆v, the window in Img2 is shifted by (u0,v0) and the optical flow is computed between the shifted windows.
 
-    # RY
-    colorwheel[0:RY, 0] = 255
-    colorwheel[0:RY, 1] = np.transpose(np.floor(255*np.arange(0, RY) / RY))
-    col += RY
+The MultiScaleLucasKanade function calls the OpticalFlowRefine function to implement the multi-scale coarse-to-fine optical flow estimation algorithm.
 
-    # YG
-    colorwheel[col:col+YG, 0] = 255 - np.transpose(np.floor(255*np.arange(0, YG) / YG))
-    colorwheel[col:col+YG, 1] = 255
-    col += YG
+The algorithm works as follows:
 
-    # GC
-    colorwheel[col:col+GC, 1] = 255
-    colorwheel[col:col+GC, 2] = np.transpose(np.floor(255*np.arange(0, GC) / GC))
-    col += GC
+Gaussian smooth and scale Img1 and Img2 by a factor of 2^(1-numLevels).
+Compute the optical flow at this resolution.
+For each level,
+a. Scale Img1 and Img2 by a factor of 2^(1-level).
+b. Upscale the previous layer's optical flow by a factor of 2.
+c. Compute u and v by calling OpticalFlowRefine with the previous level's optical flow.
+## Tasks
+The tasks for this project are as follows:
 
-    # CB
-    colorwheel[col:col+CB, 1] = 255 - np.transpose(np.floor(255*np.arange(0, CB) / CB))
-    colorwheel[col:col+CB, 2] = 255
-    col += CB
-
-    # BM
-    colorwheel[col:col+BM, 2] = 255
-    colorwheel[col:col+BM, 0] = np.transpose(np.floor(255*np.arange(0, BM) / BM))
-    col += + BM
-
-    # MR
-    colorwheel[col:col+MR, 2] = 255 - np.transpose(np.floor(255 * np.arange(0, MR) / MR))
-    colorwheel[col:col+MR, 0] = 255
-
-    return colorwheel
-```
+Implement the multi-scale coarse-to-fine optical flow estimation algorithm.
+Compute EPE error values (only on feature points detected by you) and compare against Part 2.
+Generate images with the optical flow for single-scale LK, multiscale LK, and OpenCV implementation and analyze the results.
+## Dataset
+The image sequences from the Middlebury Optical Flow dataset will be used to test the algorithm
